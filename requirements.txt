@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+celery[redis]
+redis
+pydantic[email]
+python-dotenv
+sqlalchemy
+psycopg2-binary
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart
+yt-dlp
+faster-whisper
+requests
+nvidia-cublas-cu12
+nvidia-cudnn-cu12

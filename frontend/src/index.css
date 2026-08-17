@@ -1,0 +1,49 @@
+:root {
+  --bg: #0d0f0d;
+  --surface: #161816;
+  --surface-2: #1d201d;
+  --border: #2b2f2a;
+  --text: #f4f6f2;
+  --text-muted: #97a094;
+  --amber: #8ce93b;
+  --amber-dim: #2f4a1e;
+  --teal: #5fd48a;
+  --rose: #e0665a;
+
+  --font-mono: 'Sora', ui-sans-serif, sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-deva: 'Noto Sans Devanagari', 'Inter', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+body {
+  background-image: radial-gradient(circle at 20% 0%, rgba(140, 233, 59, 0.08), transparent 45%);
+}
+
+button {
+  font-family: inherit;
+}
+
+::selection {
+  background: var(--amber-dim);
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
