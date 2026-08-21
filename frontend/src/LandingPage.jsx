@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from './AuthContext.jsx'
 import AuthModal from './AuthModal.jsx'
+import PricingSection from './PricingSection.jsx'
 import './LandingPage.css'
 
 const DEMO_LINES = {
@@ -69,7 +70,7 @@ const FAQS = [
   },
   {
     q: 'Is it free to use?',
-    a: 'Pricing details will land here once the product is live — for now, this is in active testing.',
+    a: 'Yes — every new account gets a few free scripts to try it out. After that, Scriptly Pro is ₹99/month for unlimited access.',
   },
 ]
 
@@ -117,11 +118,44 @@ export default function LandingPage({ onGetStarted }) {
   const [url, setUrl] = useState('')
   const [showAuth, setShowAuth] = useState(false)
   const [authMode, setAuthMode] = useState('login')
+  const [pendingUrl, setPendingUrl] = useState(null)
   const { user, logout } = useAuth()
 
   const submit = (e) => {
     e.preventDefault()
+    if (!user) {
+      setPendingUrl(url.trim())
+      setAuthMode('login')
+      setShowAuth(true)
+      return
+    }
     onGetStarted(url.trim())
+  }
+
+  // Once login/signup succeeds (user flips from null to set), auto-fire
+  // whatever request was blocked, instead of making them resubmit.
+  useEffect(() => {
+    if (user && pendingUrl) {
+      setShowAuth(false)
+      onGetStarted(pendingUrl)
+      setPendingUrl(null)
+    }
+  }, [user, pendingUrl, onGetStarted])
+
+  const closeAuth = () => {
+    setShowAuth(false)
+    setPendingUrl(null)
+  }
+
+  // Called by PricingSection if someone clicks Subscribe while logged out.
+  const handleRequireAuth = () => {
+    setAuthMode('login')
+    setShowAuth(true)
+  }
+
+  // Scrolls to the pricing section further down this same page.
+  const scrollToPricing = () => {
+    document.querySelector('.pricing-landing-section')?.scrollIntoView({ behavior: 'smooth' })
   }
 
   return (
@@ -134,6 +168,9 @@ export default function LandingPage({ onGetStarted }) {
             <span className="brand-name">SCRIPTLY</span>
           </div>
           <div className="nav-auth">
+            <button className="nav-link" onClick={scrollToPricing}>
+              Pricing
+            </button>
             {user ? (
               <>
                 <span className="nav-email">{user.email}</span>
@@ -169,7 +206,7 @@ export default function LandingPage({ onGetStarted }) {
           />
           <button type="submit">Get Script</button>
         </form>
-        <p className="trust-line">Works with YouTube and Instagram Reels — no login needed</p>
+        <p className="trust-line">Free to try — sign up in seconds</p>
       </section>
 
       {/* Product demo strip */}
@@ -202,6 +239,15 @@ export default function LandingPage({ onGetStarted }) {
         </div>
       </section>
 
+      {/* Pricing */}
+      <section className="section pricing-landing-section">
+        <h2>Simple pricing</h2>
+        <p className="pricing-landing-sub">
+          A few scripts free to try. Then one flat monthly price — no tiers to think about.
+        </p>
+        <PricingSection onRequireAuth={handleRequireAuth} />
+      </section>
+
       {/* FAQ */}
       <section className="section faq">
         <h2>Frequently asked questions</h2>
@@ -227,7 +273,7 @@ export default function LandingPage({ onGetStarted }) {
         </form>
       </section>
 
-      {showAuth && <AuthModal initialMode={authMode} onClose={() => setShowAuth(false)} />}
+      {showAuth && <AuthModal initialMode={authMode} onClose={closeAuth} />}
     </div>
   )
 }

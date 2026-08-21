@@ -1,6 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer
 from celery.result import AsyncResult
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -12,10 +11,12 @@ from app.schemas import (
     SignupRequest, LoginRequest, AuthResponse, UserResponse,
 )
 from app.database import get_db, engine, Base
-from app.models import User
-from app.auth_utils import hash_password, verify_password, create_access_token, decode_access_token
+from app.models import User, Subscription
+from app.auth_utils import hash_password, verify_password, create_access_token
+from app.dependencies import get_current_user
+from app.subscriptions_router import router as subscriptions_router
 
-# Creates the users table on startup if it doesn't exist yet.
+# Creates the users table (and now subscriptions table) on startup if missing.
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Video-to-Script API")
@@ -28,25 +29,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
+app.include_router(subscriptions_router, prefix="/api")
 
-
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
-    """
-    Dependency for routes that require a logged-in user. Add
-    `user: User = Depends(get_current_user)` as a parameter to any endpoint
-    that should require auth (job submission isn't gated yet — see note in
-    /api/jobs below).
-    """
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    user = db.query(User).filter(User.id == payload["sub"]).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User no longer exists")
-    return user
+FREE_SCRIPT_LIMIT = 3  # adjust as needed, or move to an env var later
 
 
 @app.post("/api/auth/signup", response_model=AuthResponse)
@@ -82,11 +67,38 @@ def get_me(user: User = Depends(get_current_user)):
     return UserResponse(id=str(user.id), email=user.email)
 
 
+def _has_active_subscription(user: User, db: Session) -> bool:
+    sub = db.query(Subscription).filter_by(user_id=user.id).first()
+    return bool(sub and sub.status == "active")
+
+
+@app.get("/api/usage")
+def get_usage(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Frontend polls this to show remaining free scripts / subscribed state."""
+    subscribed = _has_active_subscription(user, db)
+    return {
+        "subscribed": subscribed,
+        "used": user.free_scripts_used,
+        "limit": FREE_SCRIPT_LIMIT,
+        "remaining": None if subscribed else max(0, FREE_SCRIPT_LIMIT - user.free_scripts_used),
+    }
+
+
 @app.post("/api/jobs", response_model=SubmitJobResponse)
-def submit_job(req: SubmitJobRequest):
-    # NOTE: not gated behind login yet — anyone can submit a job right now,
-    # same as before auth was added. Add `user: User = Depends(get_current_user)`
-    # as a parameter here once you're ready to require login for usage.
+def submit_job(
+    req: SubmitJobRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not _has_active_subscription(user, db):
+        if user.free_scripts_used >= FREE_SCRIPT_LIMIT:
+            raise HTTPException(
+                status_code=402,
+                detail="Free script limit reached. Upgrade to Scriptly Pro to continue.",
+            )
+        user.free_scripts_used += 1
+        db.commit()
+
     task = process_video.delay(str(req.url))
     return SubmitJobResponse(job_id=task.id)
 

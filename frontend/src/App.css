@@ -345,3 +345,50 @@
     padding: 10px 10px;
   }
 }
+/* --- Usage badge + Upgrade button --- */
+.usage-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #8a9482;
+  margin-top: 8px;
+}
+
+.usage-pro {
+  background: #a3e635;
+  color: #0d130c;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.usage-upgrade {
+  background: transparent;
+  border: 1px solid rgba(163, 230, 53, 0.4);
+  color: #a3e635;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.usage-upgrade:hover {
+  background: rgba(163, 230, 53, 0.08);
+}
+
+/* --- Pricing modal overlay --- */
+.pricing-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 4, 0.75);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+}

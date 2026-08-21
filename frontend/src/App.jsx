@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import LandingPage from './LandingPage.jsx'
+import PricingSection from './PricingSection.jsx'
+import { useAuth } from './AuthContext.jsx'
 import './App.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
@@ -41,6 +43,7 @@ function TranscriptPanel({ text, font }) {
 }
 
 export default function App() {
+  const { token, user } = useAuth()
   const [showLanding, setShowLanding] = useState(true)
   const [url, setUrl] = useState('')
   const [jobId, setJobId] = useState(null)
@@ -49,7 +52,26 @@ export default function App() {
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('hinglish')
   const [copied, setCopied] = useState(false)
+  const [usage, setUsage] = useState(null) // { subscribed, used, limit, remaining }
+  const [showPricing, setShowPricing] = useState(false)
   const pollRef = useRef(null)
+
+  const fetchUsage = useCallback(async () => {
+    if (!token) return
+    try {
+      const res = await fetch(`${API_BASE}/api/usage`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return
+      setUsage(await res.json())
+    } catch {
+      // non-critical — badge just won't show if this fails
+    }
+  }, [token])
+
+  useEffect(() => {
+    if (user) fetchUsage()
+  }, [user, fetchUsage])
 
   const reset = () => {
     setJobId(null)
@@ -72,15 +94,25 @@ export default function App() {
     try {
       const res = await fetch(`${API_BASE}/api/jobs`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ url: targetUrl }),
       })
+      if (res.status === 402) {
+        // Free limit reached — show the paywall instead of a generic error.
+        setStatus('idle')
+        setShowPricing(true)
+        return
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.detail?.[0]?.msg || `Request failed (${res.status})`)
+        throw new Error(body.detail?.[0]?.msg || body.detail || `Request failed (${res.status})`)
       }
       const data = await res.json()
       setJobId(data.job_id)
+      fetchUsage() // refresh the badge now that a script was counted
     } catch (err) {
       setStatus('failure')
       setError(err.message || 'Could not reach the backend. Is it running?')
@@ -92,6 +124,11 @@ export default function App() {
     setUrl(targetUrl)
     setShowLanding(false)
     submitJob(targetUrl)
+  }
+
+  const handleSubscribed = () => {
+    setShowPricing(false)
+    fetchUsage()
   }
 
   const poll = useCallback(async (id) => {
@@ -156,6 +193,21 @@ export default function App() {
         <p className="tagline">
           paste a reel or video — get the spoken script back in hindi, english &amp; hinglish
         </p>
+
+        {usage && (
+          <div className="usage-badge">
+            {usage.subscribed ? (
+              <span className="usage-pro">PRO</span>
+            ) : (
+              <>
+                <span>{usage.remaining} free script{usage.remaining === 1 ? '' : 's'} left</span>
+                <button className="usage-upgrade" onClick={() => setShowPricing(true)}>
+                  Upgrade
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </header>
 
       <form className="url-form" onSubmit={submit}>
@@ -218,6 +270,14 @@ export default function App() {
           <div className="actions">
             <button onClick={copyActive}>{copied ? 'copied ✓' : 'copy'}</button>
             <button onClick={downloadActive}>download .txt</button>
+          </div>
+        </div>
+      )}
+
+      {showPricing && (
+        <div className="pricing-overlay" onClick={() => setShowPricing(false)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <PricingSection onSubscribed={handleSubscribed} onClose={() => setShowPricing(false)} />
           </div>
         </div>
       )}
