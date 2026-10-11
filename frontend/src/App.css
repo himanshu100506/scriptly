@@ -392,3 +392,19 @@
   z-index: 100;
   padding: 24px;
 }
+
+.back-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #9aa39a;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 20px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.back-btn:hover {
+  color: #8be12c;
+  border-color: #8be12c;
+}

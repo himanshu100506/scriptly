@@ -21,3 +21,6 @@ Thumbs.db
 
 # Editor
 .vscode/
+
+*.log
+backend/out_*.txt

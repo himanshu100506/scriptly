@@ -82,6 +82,34 @@ export default function App() {
     if (pollRef.current) clearInterval(pollRef.current)
   }
 
+  // Go back to the landing page and clear all tool state.
+  const handleBack = () => {
+    reset()
+    setUrl('')
+    setShowPricing(false)
+    setShowLanding(true)
+  }
+
+  // When the tool screen opens, add a history entry so the browser's
+  // back button returns to the landing page instead of leaving the site.
+  useEffect(() => {
+    if (!showLanding) {
+      window.history.pushState({ page: 'tool' }, '')
+    }
+  }, [showLanding])
+
+  // Browser back button → landing page.
+  useEffect(() => {
+    const onPopState = () => {
+      reset()
+      setUrl('')
+      setShowPricing(false)
+      setShowLanding(true)
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
   const submit = async (e) => {
     e.preventDefault()
     if (!url.trim()) return
@@ -183,9 +211,13 @@ export default function App() {
 
   return (
     <div className="app">
+      <button className="back-btn" onClick={handleBack}>
+        ← home
+      </button>
+
       <header className="app-header">
         <div className="brand">
-          <button className="brand-link" onClick={() => setShowLanding(true)}>
+          <button className="brand-link" onClick={handleBack}>
             <span className="brand-mark">▍▍▍</span>
             <span className="brand-name">SCRIPTLY</span>
           </button>
